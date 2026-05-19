@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  bot:
+    build: .
+    container_name: telegram-concursos-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # O volume garante que o banco de dados (data/) não será apagado 
+      # caso o servidor ou o container sejam reiniciados.
+      - ./data:/app/data

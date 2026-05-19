@@ -1,0 +1,4 @@
+{
+  "python.analysis.ignoreMissingTypeStubs": true,
+  "python.analysis.typeCheckingMode": "basic"
+}

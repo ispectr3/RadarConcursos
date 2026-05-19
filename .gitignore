@@ -1,0 +1,8 @@
+.env
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+data/
+enviados.json
+.pci_sample.html
