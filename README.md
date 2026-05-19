@@ -1,6 +1,6 @@
 <div align="center">
 
-![Radar Concursos Banner](Radar Concursos.png)
+![Radar Concursos Banner](Radar%20Concursos.png)
 
 # 🎯 Radar Concursos
 
