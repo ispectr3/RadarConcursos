@@ -18,9 +18,8 @@
 
 ## 📡 Sobre o Projeto
 
-O **Radar Concursos** é um sistema automatizado de monitoramento de concursos públicos no Brasil. Ele escaneia editais publicados em todo o país, organiza as oportunidades e envia notificações em tempo real via Telegram — para que você nunca perca um prazo ou uma vaga.
+O **Radar Concursos** é um sistema automatizado de monitoramento de concursos públicos no Brasil. Ele escaneia editais publicados em todo o país, organiza as oportunidades e envia notificações em tempo real via Telegram  para que você nunca perca um prazo ou uma vaga.
 
-> 💡 **1.287** concursos monitorados · **43** alertas ativos · **15.862** oportunidades rastreadas · **24/7** operando
 
 ---
 
