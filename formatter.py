@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import html
 import re
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from models import Edital
 
@@ -52,19 +54,25 @@ def format_telegram_message(edital: Edital) -> str:
     # Usamos o título como organização se não tiver
     org = edital.organizacao or edital.titulo
     
+    saudacao = get_saudacao()
+    
     return (
-        "🚨 <b>CONCURSO ATUALIZADO</b>\n\n"
+        f"{saudacao}\n\n"
+        "🇷 <b>Radar Concursos</b>\n\n"
 
-        f"🏛 <b>{esc(org)}</b>\n"
-        f"👥 Vagas/Nível: {esc(edital.vagas)}\n"
-        f"🔄 Atualizado em: {esc(edital.data_atualizacao)}\n\n"
-
-        f"{destaque}"
-
-        f"💰 Salário até: <b>{salario}</b>\n\n"
-
-        f"🔗 <a href='{edital.url}'>Acessar edital</a>"
+        f"📌 {esc(org)}\n"
+        f"💰 {salario} · {esc(edital.vagas)}\n"
+        f"🔗 <a href='{edital.url}'>Acessar Edital</a>"
     )
+
+def get_saudacao() -> str:
+    hora = datetime.now(ZoneInfo('America/Sao_Paulo')).hour
+    if hora < 12:
+        return "Bom dia ☀️"
+    elif hora < 18:
+        return "Boa tarde ☕"
+    else:
+        return "Boa noite 🌙"
 
 
 def truncate_telegram(

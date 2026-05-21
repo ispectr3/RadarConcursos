@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from urllib.parse import urljoin
 
 from http_util import get_soup
@@ -67,6 +69,11 @@ def fetch_ache() -> list[Edital]:
         
         data_tag = cols[1].find("span", class_="atualizacao_data_hora")
         data_atualizacao = data_tag.get_text(strip=True) if data_tag else ""
+        
+        # Filtro: somente editais atualizados hoje
+        hoje_str = datetime.now(ZoneInfo('America/Sao_Paulo')).strftime("%d/%m/%Y")
+        if not data_atualizacao.startswith(hoje_str):
+            continue
         
         salario_tag = cols[3].find("span", class_="sal_max")
         salario = salario_tag.get_text(strip=True) if salario_tag else ""
