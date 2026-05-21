@@ -12,15 +12,7 @@ from urlnorm import normalize_url
 logger = logging.getLogger(__name__)
 
 ACHE_BASE = "https://www.acheconcursos.com.br"
-ACHE_PALAVRAS = ("edital", "concurso", "processo seletivo")
-ACHE_IGNORAR = (
-    "concursos abertos",
-    "concursos previstos",
-    "busca concursos",
-    "seu concurso",
-    "cadastre-se",
-    "login",
-)
+ACHE_ATUALIZADOS = "https://www.acheconcursos.com.br/concursos-atualizados-recentemente"
 
 PCI_BASE = "https://www.pciconcursos.com.br"
 PCI_SKIP = ("/apostilas/", "/pedido/", "compra?", "/login", "google", "facebook")
@@ -36,31 +28,65 @@ FOLHA_PALAVRAS = (
     "cadastro reserva",
 )
 
-
 def fetch_ache() -> list[Edital]:
-    soup = get_soup(ACHE_BASE)
+    soup = get_soup(ACHE_ATUALIZADOS)
     editais: list[Edital] = []
     seen: set[str] = set()
 
-    for link in soup.find_all("a", href=True):
-        texto = link.get_text(strip=True)
-        href = link.get("href", "").strip()
-        if not texto or not href:
+    # Procurar a tabela de concursos atualizados
+    tbl = soup.find("table", class_="tbl-conc")
+    if not tbl:
+        logger.warning("Tabela .tbl-conc não encontrada em acheconcursos")
+        return editais
+
+    for row in tbl.find_all("tr"):
+        cols = row.find_all("td", class_="tbl-data")
+        if not cols or len(cols) < 4:
             continue
-        tl = texto.lower()
-        if any(i in tl for i in ACHE_IGNORAR):
+            
+        link_tag = cols[0].find("a")
+        if not link_tag:
             continue
-        if not any(p in tl for p in ACHE_PALAVRAS):
-            continue
+            
+        titulo_tag = link_tag.find("span", class_="titulo")
+        titulo = titulo_tag.get_text(strip=True) if titulo_tag else link_tag.get_text(strip=True)
+        
+        href = link_tag.get("href", "").strip()
         if href.startswith("/"):
             href = ACHE_BASE + href
         if not href.startswith("http"):
             continue
+            
         key = normalize_url(href)
         if key in seen:
             continue
         seen.add(key)
-        editais.append(Edital(titulo=texto, url=key, fonte="acheconcursos"))
+        
+        vagas_tag = cols[0].find("span", class_="vagas")
+        vagas = vagas_tag.get_text(strip=True) if vagas_tag else ""
+        
+        data_tag = cols[1].find("span", class_="atualizacao_data_hora")
+        data_atualizacao = data_tag.get_text(strip=True) if data_tag else ""
+        
+        salario_tag = cols[3].find("span", class_="sal_max")
+        salario = salario_tag.get_text(strip=True) if salario_tag else ""
+        
+        num_vagas_tag = cols[2].find("span", class_="numero_vagas")
+        num_vagas = num_vagas_tag.get_text(strip=True) if num_vagas_tag else ""
+        
+        if num_vagas and vagas:
+            vagas_full = f"{num_vagas} vagas ({vagas})"
+        else:
+            vagas_full = vagas or num_vagas
+            
+        editais.append(Edital(
+            titulo=titulo, 
+            url=key, 
+            fonte="acheconcursos",
+            vagas=vagas_full,
+            data_atualizacao=data_atualizacao,
+            salario=salario
+        ))
 
     return editais
 

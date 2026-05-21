@@ -23,6 +23,8 @@ class Edital:
     link_edital: str | None = None
     link_inscricao: str | None = None
     resumo: str | None = None
+    data_atualizacao: str | None = None
+    vagas: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_json_dict(self) -> dict[str, Any]:

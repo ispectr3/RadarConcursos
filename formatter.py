@@ -49,24 +49,19 @@ def format_telegram_message(edital: Edital) -> str:
     except Exception:
         pass
 
+    # Usamos o título como organização se não tiver
+    org = edital.organizacao or edital.titulo
+    
     return (
-        "🚨 <b>NOVO EDITAL PUBLICADO</b>\n\n"
+        "🚨 <b>CONCURSO ATUALIZADO</b>\n\n"
 
-        f"🏛 <b>{esc(edital.organizacao)}</b>\n"
-        f"💼 {esc(edital.cargo)}\n"
-        f"📍 {esc(edital.estado)}\n\n"
+        f"🏛 <b>{esc(org)}</b>\n"
+        f"👥 Vagas/Nível: {esc(edital.vagas)}\n"
+        f"🔄 Atualizado em: {esc(edital.data_atualizacao)}\n\n"
 
         f"{destaque}"
 
-        f"💰 <b>{salario}</b>\n\n"
-
-        "🗓 <b>CRONOGRAMA</b>\n"
-        f"• Inscrições: {esc(edital.inscricoes)}\n"
-        f"• Isenção: {esc(edital.isencao)}\n"
-        f"• Prova: {esc(edital.data_prova)}\n\n"
-
-        "📌 <b>RESUMO</b>\n"
-        f"{esc(edital.resumo)}\n\n"
+        f"💰 Salário até: <b>{salario}</b>\n\n"
 
         f"🔗 <a href='{edital.url}'>Acessar edital</a>"
     )

@@ -53,13 +53,6 @@ async def run_cycle() -> None:
     sent = 0
 
     for edital in items:
-        if sent >= settings.max_notifications_per_cycle:
-            logger.info(
-                "Limite de %s notificações por ciclo atingido.",
-                settings.max_notifications_per_cycle,
-            )
-            break
-
         if was_notified(edital.url):
             continue
 
