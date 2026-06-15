@@ -135,6 +135,7 @@ def resumo_ia(texto: str) -> dict:
 
     if time.time() < _gemini_blocked_until:
         logger.info("Gemini está em cooldown de rate limit. Usando Groq diretamente.")
+        _throttle()
         return resumo_ia_groq(texto)
 
     _throttle()
@@ -158,23 +159,35 @@ def resumo_ia(texto: str) -> dict:
 
 
 def enrich_edital(edital: Edital) -> Edital:
+    html = ""
     try:
         html = fetch_text(edital.url)
-    except Exception:
-        return edital
+    except Exception as e:
+        logger.warning("Erro ao baixar página do edital %s: %s", edital.url, e)
 
-    soup = BeautifulSoup(html, "html.parser")
-    texto = limpar_texto(soup.get_text(" ", strip=True))
+    texto_extraido = ""
+    if html:
+        soup = BeautifulSoup(html, "html.parser")
+        texto_extraido = limpar_texto(soup.get_text(" ", strip=True))
+
+    if len(texto_extraido) < 200:
+        logger.warning(
+            "Texto extraído muito curto (%s caracteres) ou falha no download. Usando o título para IA.",
+            len(texto_extraido),
+        )
+        texto = f"Título do edital: {edital.titulo}"
+    else:
+        texto = texto_extraido
 
     dados = resumo_ia(texto)
 
-    edital.organizacao = dados.get("organizacao")
-    edital.cargo = dados.get("cargo")
-    edital.salario = dados.get("salario")
-    edital.estado = dados.get("estado")
-    edital.inscricoes = dados.get("inscricoes")
-    edital.isencao = dados.get("isencao")
-    edital.data_prova = dados.get("data_prova")
-    edital.resumo = dados.get("resumo")
+    edital.organizacao = dados.get("organizacao") or edital.organizacao or edital.titulo
+    edital.cargo = dados.get("cargo") or edital.cargo
+    edital.salario = dados.get("salario") or edital.salario
+    edital.estado = dados.get("estado") or edital.estado
+    edital.inscricoes = dados.get("inscricoes") or edital.inscricoes
+    edital.isencao = dados.get("isencao") or edital.isencao
+    edital.data_prova = dados.get("data_prova") or edital.data_prova
+    edital.resumo = dados.get("resumo") or edital.resumo
 
     return edital
