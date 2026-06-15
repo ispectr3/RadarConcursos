@@ -99,6 +99,63 @@ def fetch_ache() -> list[Edital]:
     return editais
 
 
+def is_study_or_article(title: str, slug: str) -> bool:
+    t_lower = title.lower()
+    s_lower = slug.lower()
+
+    study_indicators = (
+        "resumo para",
+        "como estudar",
+        "o que cai",
+        "o que e",
+        "dicas de",
+        "dicas para",
+        "questoes de",
+        "simulado de",
+        "simulados",
+        "aula gratis",
+        "aula gratuita",
+        "aulas gratuitas",
+        "revisao para",
+        "revisao de",
+        "cronograma de estudos",
+        "plano de estudos",
+        "guia de estudos",
+        "lei esquematizada",
+        "materias cobradas",
+        "assuntos mais cobrados",
+        "quadro de estudos",
+        "apostila gratis",
+        "apostila gratuita",
+        "resumos de",
+        "guia completo",
+        "maratona de",
+    )
+
+    for indicator in study_indicators:
+        if indicator in t_lower or indicator.replace(" ", "-") in s_lower:
+            return True
+
+    if "para concursos" in t_lower:
+        contest_indicators = (
+            "edital",
+            "vagas",
+            "inscric",
+            "autorizado",
+            "retificad",
+            "comissao",
+            "banca",
+            "abert",
+            "salario",
+            "saiu",
+            "publicado",
+        )
+        if not any(ci in t_lower or ci in s_lower for ci in contest_indicators):
+            return True
+
+    return False
+
+
 def fetch_pci() -> list[Edital]:
     soup = get_soup(PCI_BASE)
     editais: list[Edital] = []
@@ -116,6 +173,11 @@ def fetch_pci() -> list[Edital]:
         full = href if href.startswith("http") else urljoin(PCI_BASE, href)
         key = normalize_url(full)
         if key in seen:
+            continue
+        p = urlparse(full)
+        segments = [s for s in p.path.split("/") if s]
+        slug = segments[-1] if segments else ""
+        if is_study_or_article(titulo, slug):
             continue
         seen.add(key)
         editais.append(Edital(titulo=titulo, url=key, fonte="pciconcursos"))
@@ -143,6 +205,11 @@ def fetch_folha() -> list[Edital]:
             continue
         key = normalize_url(full)
         if key in seen:
+            continue
+        p = urlparse(full)
+        segments = [s for s in p.path.split("/") if s]
+        slug = segments[-1] if segments else ""
+        if is_study_or_article(titulo, slug):
             continue
         seen.add(key)
         editais.append(Edital(titulo=titulo, url=key, fonte="folhadirigida"))
@@ -212,6 +279,8 @@ def fetch_gran() -> list[Edital]:
             slug = segments[0].lower()
             if any(kw in slug or kw in titulo.lower() for kw in keywords):
                 if not any(skip in slug for skip in skip_terms) and not is_generic_page(slug):
+                    if is_study_or_article(titulo, slug):
+                        continue
                     if len(titulo) < 12:
                         continue
                     key = normalize_url(href)
@@ -243,6 +312,8 @@ def fetch_estrategia() -> list[Edital]:
             slug = segments[1].lower()
             if any(kw in slug or kw in titulo.lower() for kw in keywords):
                 if not any(skip in slug for skip in skip_terms) and not is_generic_page(slug):
+                    if is_study_or_article(titulo, slug):
+                        continue
                     if len(titulo) < 12:
                         continue
                     key = normalize_url(href)
