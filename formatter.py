@@ -24,46 +24,56 @@ def esc(valor: object) -> str:
 
 
 def format_telegram_message(edital: Edital) -> str:
-
-    salario = esc(edital.salario)
-
+    salario_raw = edital.salario or "Não informado"
     destaque = ""
 
     try:
-
-        nums = re.findall(
-            r"\d+",
-            salario.replace(".", "")
-        )
-
+        nums = re.findall(r"\d+", salario_raw.replace(".", ""))
         if nums:
-
             valor = int(nums[0])
-
-            if valor >= 10000:
-
-                destaque = "🔥 <b>ALTA REMUNERAÇÃO</b>\n\n"
-
-            elif valor >= 5000:
-
-                destaque = "💰 <b>BOA REMUNERAÇÃO</b>\n\n"
-
+            if valor >= 15000:
+                destaque = "🔥 <b>REMUNERAÇÃO HISTÓRICA</b>\n\n"
+            elif valor >= 8000:
+                destaque = "💰 <b>ALTA REMUNERAÇÃO</b>\n\n"
+            elif valor >= 4000:
+                destaque = "💵 <b>BOA REMUNERAÇÃO</b>\n\n"
     except Exception:
         pass
 
-    # Usamos o título como organização se não tiver
     org = edital.organizacao or edital.titulo
-    
-    saudacao = get_saudacao()
-    
-    return (
-        f"{saudacao}\n\n"
-        "🇷 <b>Radar Concursos</b>\n\n"
+    cargos = edital.cargo or "Não informado"
+    vagas = edital.vagas or "Não informado"
+    estado = edital.estado or "Não informado"
+    salario = salario_raw
 
-        f"📌 {esc(org)}\n"
-        f"💰 {salario} · {esc(edital.vagas)}\n"
-        f"🔗 <a href='{edital.url}'>Acessar Edital</a>"
+    inscricoes = edital.inscricoes or "Não informado"
+    isencao = edital.isencao or "Não informado"
+    data_prova = edital.data_prova or "Não informado"
+
+    resumo = edital.resumo or ""
+
+    saudacao = get_saudacao()
+
+    msg = (
+        f"{saudacao}\n\n"
+        f"{destaque}"
+        f"🎯 <b>RADAR CONCURSOS</b>\n\n"
+        f"🏛️ <b>Órgão:</b> {esc(org)}\n"
+        f"📍 <b>Estado:</b> {esc(estado)}\n"
+        f"💼 <b>Cargo:</b> {esc(cargos)}\n"
+        f"💰 <b>Salário:</b> {esc(salario)}\n"
+        f"👥 <b>Vagas:</b> {esc(vagas)}\n\n"
+        f"📅 <b>Cronograma:</b>\n"
+        f"• Inscrições: {esc(inscricoes)}\n"
+        f"• Isenção: {esc(isencao)}\n"
+        f"• Prova: {esc(data_prova)}\n"
     )
+
+    if resumo.strip():
+        msg += f"\n📝 <b>Resumo:</b>\n<i>{esc(resumo)}</i>\n"
+
+    msg += f"\n🔗 <a href='{edital.url}'>Acessar Notícia / Edital</a>"
+    return msg
 
 def get_saudacao() -> str:
     hora = datetime.now(ZoneInfo('America/Sao_Paulo')).hour

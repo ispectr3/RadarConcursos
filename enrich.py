@@ -29,6 +29,8 @@ except Exception:
 # Free tier: 5 req/min → 1 req a cada 12.5s
 _MIN_INTERVAL = 12.5
 _last_call: float = 0.0
+_gemini_blocked_until: float = 0.0
+_groq_blocked_until: float = 0.0
 
 
 def limpar_texto(texto: str) -> str:
@@ -47,8 +49,13 @@ def _throttle() -> None:
 
 
 def resumo_ia_groq(texto: str) -> dict:
+    global _groq_blocked_until
     if not groq_client:
         logger.error("Groq API key não configurada no .env. Impossível usar o fallback.")
+        return {}
+
+    if time.time() < _groq_blocked_until:
+        logger.warning("Groq está em cooldown de rate limit. Ignorando chamada.")
         return {}
 
     prompt = f"""
@@ -80,7 +87,7 @@ def resumo_ia_groq(texto: str) -> dict:
     try:
         response = groq_client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-versatile",
             temperature=0.0,
             response_format={"type": "json_object"},
         )
@@ -89,10 +96,17 @@ def resumo_ia_groq(texto: str) -> dict:
         return json.loads(content)
     except Exception as e:
         logger.error("Erro no Groq: %s", e)
+        # Se for erro de rate limit/quota, define cooldown de 5 min (300 segundos)
+        err_msg = str(e).lower()
+        if "exhausted" in err_msg or "limit" in err_msg or "429" in err_msg:
+            logger.warning("Groq atingiu limite de cota. Definindo cooldown de 5 min.")
+            _groq_blocked_until = time.time() + 300
         return {}
 
 
-def resumo_ia(texto: str, max_retries: int = 5) -> dict:
+def resumo_ia(texto: str) -> dict:
+    global _gemini_blocked_until
+
     prompt = f"""
     Leia este edital.
 
@@ -119,23 +133,28 @@ def resumo_ia(texto: str, max_retries: int = 5) -> dict:
     {texto[:15000]}
     """
 
-    for attempt in range(max_retries):
-        _throttle()
-        try:
-            response = model.generate_content(prompt)
-            content = response.text.strip()
-            content = re.sub(r"```json|```", "", content)
-            return json.loads(content)
+    if time.time() < _gemini_blocked_until:
+        logger.info("Gemini está em cooldown de rate limit. Usando Groq diretamente.")
+        return resumo_ia_groq(texto)
 
-        except google.api_core.exceptions.ResourceExhausted as e:
-            logger.warning("Quota do Gemini esgotada (Rate Limit). Acionando IA de fallback (Groq)...")
-            return resumo_ia_groq(texto)
+    _throttle()
+    try:
+        response = model.generate_content(prompt)
+        content = response.text.strip()
+        content = re.sub(r"```json|```", "", content)
+        return json.loads(content)
 
-        except (json.JSONDecodeError, Exception) as e:
-            logger.warning("Erro ao processar resposta da IA: %s", e)
-            return {}
+    except google.api_core.exceptions.ResourceExhausted as e:
+        logger.warning("Quota do Gemini esgotada (Rate Limit). Ativando cooldown de 5 min e fallback para Groq...")
+        _gemini_blocked_until = time.time() + 300
+        return resumo_ia_groq(texto)
 
-    return {}
+    except Exception as e:
+        logger.warning("Erro no Gemini: %s. Tentando fallback para Groq...", e)
+        err_msg = str(e).lower()
+        if "exhausted" in err_msg or "quota" in err_msg or "429" in err_msg:
+            _gemini_blocked_until = time.time() + 300
+        return resumo_ia_groq(texto)
 
 
 def enrich_edital(edital: Edital) -> Edital:

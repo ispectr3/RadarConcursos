@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
+import re
+import unicodedata
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[import-untyped]
@@ -44,6 +46,74 @@ def _scheduler_tz() -> ZoneInfo:
         return ZoneInfo("America/Sao_Paulo")
 
 
+STATE_MAP = {
+    "ACRE": "AC", "ALAGOAS": "AL", "AMAPA": "AP", "AMAZONAS": "AM", "BAHIA": "BA",
+    "CEARA": "CE", "DISTRITO FEDERAL": "DF", "ESPIRITO SANTO": "ES", "GOIAS": "GO",
+    "MARANHAO": "MA", "MATO GROSSO": "MT", "MATO GROSSO DO SUL": "MS", "MINAS GERAIS": "MG",
+    "PARA": "PA", "PARAIBA": "PB", "PARANA": "PR", "PERNAMBUCO": "PE", "PIAUI": "PI",
+    "RIO DE JANEIRO": "RJ", "RIO GRANDE DO NORTE": "RN", "RIO GRANDE DO SUL": "RS",
+    "RONDONIA": "RO", "RORAIMA": "RR", "SANTA CATARINA": "SC", "SAO PAULO": "SP",
+    "SERGIPE": "SE", "TOCANTINS": "TO"
+}
+
+
+def normalize_text(text: str) -> str:
+    return "".join(
+        c for c in unicodedata.normalize("NFD", text)
+        if unicodedata.category(c) != "Mn"
+    ).upper()
+
+
+def matches_state(edital: Edital, filter_states: list[str]) -> bool:
+    if not filter_states:
+        return True
+
+    est = normalize_text(edital.estado or "")
+    tit = normalize_text(edital.titulo)
+
+    found_ufs = set()
+    for term in [est, tit]:
+        for uf in filter_states:
+            if re.search(rf"\b{re.escape(uf)}\b", term):
+                found_ufs.add(uf)
+        for full_name, uf in STATE_MAP.items():
+            if full_name in term:
+                found_ufs.add(uf)
+
+    for uf in filter_states:
+        if uf in found_ufs:
+            return True
+    return False
+
+
+def extract_max_salary(salary_str: str | None) -> float | None:
+    if not salary_str:
+        return None
+
+    matches = re.findall(r"\d+(?:\.\d+)*(?:,\d+)?", salary_str)
+    values = []
+    for m in matches:
+        try:
+            clean = m
+            if "," in clean and "." in clean:
+                clean = clean.replace(".", "").replace(",", ".")
+            elif "," in clean:
+                parts = clean.split(",")
+                if len(parts[-1]) <= 2:
+                    clean = clean.replace(".", "").replace(",", ".")
+                else:
+                    clean = clean.replace(".", "").replace(",", "")
+            elif "." in clean:
+                parts = clean.split(".")
+                if len(parts[-1]) == 3:
+                    clean = clean.replace(".", "")
+            val = float(clean)
+            values.append(val)
+        except ValueError:
+            continue
+    return max(values) if values else None
+
+
 async def run_cycle() -> None:
     tz = _scheduler_tz()
     items = await asyncio.to_thread(collect_all)
@@ -66,6 +136,21 @@ async def run_cycle() -> None:
 
         if settings.fetch_full_article:
             edital = await asyncio.to_thread(enrich_edital, edital)
+
+        if settings.filter_states and not matches_state(edital, settings.filter_states):
+            logger.info("Ignorado (filtro de estado): %s", edital.titulo[:80])
+            continue
+
+        if settings.min_salary:
+            val = extract_max_salary(edital.salario)
+            if val is not None and val < settings.min_salary:
+                logger.info(
+                    "Ignorado (filtro de salário: R$ %s < R$ %s): %s",
+                    val,
+                    settings.min_salary,
+                    edital.titulo[:80],
+                )
+                continue
 
         body = format_telegram_message(edital)
         telegram_ok = True

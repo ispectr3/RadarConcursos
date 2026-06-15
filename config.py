@@ -112,6 +112,10 @@ class Settings:
 
     max_notifications_per_cycle: int
 
+    filter_states: list[str] | None
+
+    min_salary: float | None
+
 
 def load_settings() -> Settings:
 
@@ -124,6 +128,19 @@ def load_settings() -> Settings:
     else:
 
         sched = _parse_schedule_hours(_sched_raw)
+
+    states_raw = os.getenv("FILTER_STATES")
+    filter_states = None
+    if states_raw and states_raw.strip():
+        filter_states = [s.strip().upper() for s in states_raw.split(",") if s.strip()]
+
+    salary_raw = os.getenv("MIN_SALARY")
+    min_salary = None
+    if salary_raw and salary_raw.strip():
+        try:
+            min_salary = float(salary_raw.strip())
+        except ValueError:
+            min_salary = None
 
     return Settings(
 
@@ -233,6 +250,10 @@ def load_settings() -> Settings:
                 5
             )
         ),
+
+        filter_states=filter_states,
+
+        min_salary=min_salary,
     )
 
 

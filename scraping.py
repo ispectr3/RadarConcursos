@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from http_util import get_soup
 from models import Edital
@@ -149,9 +150,112 @@ def fetch_folha() -> list[Edital]:
     return editais
 
 
+GRAN_BASE = "https://blog.grancursosonline.com.br"
+ESTRATEGIA_BASE = "https://www.estrategiaconcursos.com.br"
+
+
+def is_generic_page(slug: str) -> bool:
+    slug = slug.strip().lower()
+    if slug in (
+        "concursos-abertos",
+        "concursos-2026",
+        "concursos-em-destaque",
+        "mapa-concursos",
+        "lp",
+        "depoimentos",
+        "professores",
+        "artigos",
+        "como-estudar",
+        "como-passar",
+        "category",
+        "tag",
+        "page",
+        "contato",
+    ):
+        return True
+    if re.match(r"^concursos-[a-z]{2}$", slug):
+        return True
+    if slug.startswith("concursos-") and any(
+        r in slug
+        for r in (
+            "sudeste",
+            "nordeste",
+            "centro-oeste",
+            "norte",
+            "sul",
+            "administrativos",
+            "legislativos",
+            "policiais",
+        )
+    ):
+        return True
+    return False
+
+
+def fetch_gran() -> list[Edital]:
+    soup = get_soup(GRAN_BASE)
+    editais: list[Edital] = []
+    seen: set[str] = set()
+    keywords = ("concurso", "edital", "vagas", "inscricoes", "inscricao", "retificacao", "aberto")
+    skip_terms = ("depoimentos", "professores", "artigos", "concurseiro-iniciante", "como-passar", "category", "tag", "page", "contato")
+
+    for a in soup.find_all("a", href=True):
+        href = a.get("href", "").strip()
+        titulo = a.get_text(" ", strip=True)
+        if not href.startswith("http"):
+            href = urljoin(GRAN_BASE, href)
+        if "blog.grancursosonline.com.br" not in normalize_url(href):
+            continue
+        p = urlparse(href)
+        segments = [s for s in p.path.split("/") if s]
+        if len(segments) == 1:
+            slug = segments[0].lower()
+            if any(kw in slug or kw in titulo.lower() for kw in keywords):
+                if not any(skip in slug for skip in skip_terms) and not is_generic_page(slug):
+                    if len(titulo) < 12:
+                        continue
+                    key = normalize_url(href)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    editais.append(Edital(titulo=titulo, url=key, fonte="grancursos"))
+    return editais
+
+
+def fetch_estrategia() -> list[Edital]:
+    blog_url = urljoin(ESTRATEGIA_BASE, "/blog/")
+    soup = get_soup(blog_url)
+    editais: list[Edital] = []
+    seen: set[str] = set()
+    keywords = ("concurso", "edital", "vagas", "inscricoes", "inscricao", "retificacao", "aberto")
+    skip_terms = ("depoimentos", "professores", "artigos", "como-estudar", "category", "tag", "page", "contato", "mapa-concursos", "lp")
+
+    for a in soup.find_all("a", href=True):
+        href = a.get("href", "").strip()
+        titulo = a.get_text(" ", strip=True)
+        if not href.startswith("http"):
+            href = urljoin(blog_url, href)
+        if "estrategiaconcursos.com.br/blog" not in normalize_url(href):
+            continue
+        p = urlparse(href)
+        segments = [s for s in p.path.split("/") if s]
+        if len(segments) == 2 and segments[0] == "blog":
+            slug = segments[1].lower()
+            if any(kw in slug or kw in titulo.lower() for kw in keywords):
+                if not any(skip in slug for skip in skip_terms) and not is_generic_page(slug):
+                    if len(titulo) < 12:
+                        continue
+                    key = normalize_url(href)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    editais.append(Edital(titulo=titulo, url=key, fonte="estrategiaconcursos"))
+    return editais
+
+
 def collect_all() -> list[Edital]:
     merged: dict[str, Edital] = {}
-    for fetch in (fetch_ache, fetch_pci):
+    for fetch in (fetch_ache, fetch_pci, fetch_folha, fetch_gran, fetch_estrategia):
         try:
             items = fetch()
         except Exception:
