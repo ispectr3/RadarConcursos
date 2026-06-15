@@ -120,6 +120,18 @@ async def run_cycle() -> None:
     await asyncio.to_thread(touch_url_discoveries, [e.url for e in items])
     logger.info("Coletados %s itens (dedup entre fontes).", len(items))
 
+    # Prevenção de estouro de cota da IA em cargas iniciais/novos scrapers (seeding)
+    novos_itens = [e for e in items if not was_notified(e.url)]
+    if len(novos_itens) > 15:
+        logger.warning(
+            "Detectados %s novos editais (provável carga inicial/novos scrapers). "
+            "Registrando todos no banco para evitar estouro de cota de IA e silenciando este lote.",
+            len(novos_itens)
+        )
+        for edital in novos_itens:
+            mark_notified(edital)
+        return
+
     sent = 0
 
     for edital in items:
