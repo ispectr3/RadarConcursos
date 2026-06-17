@@ -214,7 +214,7 @@ def load_settings() -> Settings:
 
         user_agent=os.getenv(
             "HTTP_USER_AGENT",
-            "Mozilla/5.0 (compatible; RadarConcursos/2.0)"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         ),
 
         log_level=os.getenv(
