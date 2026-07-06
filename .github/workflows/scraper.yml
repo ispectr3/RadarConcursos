@@ -1,0 +1,39 @@
+name: Radar Concursos
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # a cada 6 horas
+  workflow_dispatch:         # permite executar manualmente
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache SQLite
+        id: cache-db
+        uses: actions/cache@v4
+        with:
+          path: data/
+          key: radar-db
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Executar radar
+        run: python run_once.py
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          FREE_API_KEY: ${{ secrets.FREE_API_KEY }}
+          FETCH_FULL_ARTICLE: 'True'
+          ONLY_DISCOVERED_TODAY: 'False'
+          SCHEDULER_TIMEZONE: 'America/Sao_Paulo'
