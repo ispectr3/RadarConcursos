@@ -108,6 +108,10 @@ class Settings:
 
     groq_api_key: str | None
 
+    free_api_key: str | None
+    free_api_base_url: str
+    free_api_model: str
+
     telegram_delay_seconds: int
 
     max_notifications_per_cycle: int
@@ -115,6 +119,12 @@ class Settings:
     filter_states: list[str] | None
 
     min_salary: float | None
+
+    digest_hour: int
+    digest_sources: list[str] | None
+
+    google_calendar_creds: str | None
+    google_calendar_id: str | None
 
 
 def load_settings() -> Settings:
@@ -235,6 +245,16 @@ def load_settings() -> Settings:
             "GROQ_API_KEY"
         ),
 
+        free_api_key=os.getenv("FREE_API_KEY"),
+        free_api_base_url=os.getenv(
+            "FREE_API_BASE_URL",
+            "https://aiapiv2.pekpik.com/v1"
+        ),
+        free_api_model=os.getenv(
+            "FREE_API_MODEL",
+            "gemini-2.5-flash"
+        ),
+
         telegram_delay_seconds=max(
             1,
             _env_int(
@@ -254,7 +274,22 @@ def load_settings() -> Settings:
         filter_states=filter_states,
 
         min_salary=min_salary,
+
+        digest_hour=_env_int("DIGEST_HOUR", 20),
+        digest_sources=_parse_sources(os.getenv("DIGEST_SOURCES")),
+
+        google_calendar_creds=os.getenv("GOOGLE_CALENDAR_CREDS"),
+        google_calendar_id=os.getenv(
+            "GOOGLE_CALENDAR_ID",
+            "primary",
+        ),
     )
+
+
+def _parse_sources(raw: str | None) -> list[str] | None:
+    if not raw or not raw.strip():
+        return None
+    return [s.strip().lower() for s in raw.split(",") if s.strip()]
 
 
 settings = load_settings()

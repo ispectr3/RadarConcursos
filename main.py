@@ -13,8 +13,10 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[impo
 from apscheduler.triggers.cron import CronTrigger  # type: ignore[import-untyped]
 from apscheduler.triggers.interval import IntervalTrigger  # type: ignore[import-untyped]
 
+from calendar_integration import criar_evento_edital
 from config import settings
-from enrich import enrich_edital
+from digest import send_digest
+from enrich import AIRateLimitError, enrich_edital
 from formatter import format_telegram_message
 from notifications import send_edital_email, send_telegram_html
 from scraping import collect_all
@@ -133,15 +135,9 @@ async def run_cycle() -> None:
         return
 
     sent = 0
+    digest_items: list[Edital] = []
 
     for edital in items:
-        if sent >= settings.max_notifications_per_cycle:
-            logger.info(
-                "Limite máximo de notificações por ciclo atingido (%s). Parando.",
-                settings.max_notifications_per_cycle,
-            )
-            break
-
         if was_notified(edital.url):
             continue
 
@@ -154,7 +150,17 @@ async def run_cycle() -> None:
         logger.info("Novo item [%s]: %s", edital.fonte, edital.titulo[:100])
 
         if settings.fetch_full_article:
-            edital = await asyncio.to_thread(enrich_edital, edital)
+            try:
+                edital = await asyncio.to_thread(enrich_edital, edital)
+            except AIRateLimitError as e:
+                logger.warning(
+                    "Cota das IAs (Gemini e Groq) esgotada. Abortando este ciclo para tentar novamente na próxima rodada. Detalhe: %s",
+                    e,
+                )
+                break
+            except Exception as e:
+                logger.exception("Erro inesperado no enriquecimento do edital: %s", e)
+                continue
 
         if settings.filter_states and not matches_state(edital, settings.filter_states):
             logger.info("Ignorado (filtro de estado): %s", edital.titulo[:80])
@@ -189,12 +195,30 @@ async def run_cycle() -> None:
         if telegram_ok and mail_ok:
             mark_notified(edital)
             sent += 1
+            digest_items.append(edital)
+            if settings.google_calendar_creds:
+                await asyncio.to_thread(criar_evento_edital, edital)
             logger.info("Notificado e registrado: %s", edital.url)
         else:
             logger.warning(
                 "Item não registrado para deduplicação (falha em canal ativo): %s",
                 edital.url,
             )
+
+    if sent:
+        logger.info(
+            "Ciclo concluído: %s notificados. Execute o dashboard com: python dashboard.py",
+            sent,
+        )
+
+
+async def _digest_job() -> None:
+    items = await asyncio.to_thread(collect_all)
+    novos = [e for e in items if not was_notified(e.url)]
+    if novos:
+        await asyncio.to_thread(send_digest, novos)
+    else:
+        logger.info("Digest: nenhum edital novo.")
 
 
 async def main() -> None:
@@ -234,9 +258,21 @@ async def main() -> None:
             settings.interval_minutes,
         )
 
+    scheduler.add_job(  # type: ignore[no-untyped-call]
+        _digest_job,
+        CronTrigger(hour=settings.digest_hour, minute=0, timezone=tz),
+        id="digest_diario",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=600,
+    )
+    logger.info(
+        "Digest diário agendado às %s:00.", settings.digest_hour,
+    )
+
     scheduler.start()
     logger.info(
-        "Monitor no ar — FETCH_FULL_ARTICLE=%s. RUN_ON_START=%s. Ctrl+C para parar.",
+        "Monitor no ar — FETCH_FULL_ARTICLE=%s. RUN_ON_START=%s. Dashboard: python dashboard.py",
         settings.fetch_full_article,
         settings.run_on_start,
     )

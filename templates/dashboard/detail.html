@@ -1,0 +1,46 @@
+{% extends "dashboard/base.html" %}
+{% block title %}{{ edital.titulo[:60] }} — Radar Concursos{% endblock %}
+{% block content %}
+<a href="/editais" style="font-size:0.875rem;margin-bottom:1rem;display:inline-block;">← Voltar para lista</a>
+
+<div class="detail-card">
+  <h2>{{ edital.titulo }}</h2>
+  <p style="color:#94a3b8;font-size:0.875rem;margin-bottom:1.5rem;">
+    <span class="source-badge source-{{ edital.fonte }}">{{ edital.fonte }}</span>
+    <span class="tag">{{ edital.created_at[:10] }}</span>
+    {% if edital.data_atualizacao %}<span class="tag">Atualizado: {{ edital.data_atualizacao }}</span>{% endif %}
+  </p>
+
+  <div class="detail-grid">
+    <div class="detail-field"><div class="field-label">Organização</div><div class="field-value">{{ edital.organizacao or "Não informado" }}</div></div>
+    <div class="detail-field"><div class="field-label">Cargo</div><div class="field-value">{{ edital.cargo or "Não informado" }}</div></div>
+    <div class="detail-field"><div class="field-label">Estado</div><div class="field-value">{{ edital.estado or "Não informado" }}</div></div>
+    <div class="detail-field"><div class="field-label">Salário</div><div class="field-value {% if edital.salario and 'R$' in edital.salario %}salary-mid{% endif %}">{{ edital.salario or "Não informado" }}</div></div>
+    <div class="detail-field"><div class="field-label">Vagas</div><div class="field-value">{{ edital.vagas or "Não informado" }}</div></div>
+    <div class="detail-field"><div class="field-label">Inscrições</div><div class="field-value">{{ edital.inscricoes or "Não informado" }}</div></div>
+    <div class="detail-field"><div class="field-label">Isenção</div><div class="field-value">{{ edital.isencao or "Não informado" }}</div></div>
+    <div class="detail-field"><div class="field-label">Data da Prova</div><div class="field-value">{{ edital.data_prova or "Não informado" }}</div></div>
+    <div class="detail-field"><div class="field-label">Local da Prova</div><div class="field-value">{{ edital.local_prova or "Não informado" }}</div></div>
+  </div>
+
+  {% if edital.resumo %}
+  <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #334155;">
+    <div class="field-label">Resumo</div>
+    <p style="margin-top:0.5rem;color:#cbd5e1;">{{ edital.resumo }}</p>
+  </div>
+  {% endif %}
+
+  {% if edital.cronograma %}
+  <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #334155;">
+    <div class="field-label">Cronograma</div>
+    <p style="margin-top:0.5rem;color:#cbd5e1;">{{ edital.cronograma }}</p>
+  </div>
+  {% endif %}
+
+  <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #334155;display:flex;gap:1rem;flex-wrap:wrap;">
+    <a href="{{ edital.url }}" target="_blank" class="btn">🔗 Acessar Página</a>
+    {% if edital.link_edital %}<a href="{{ edital.link_edital }}" target="_blank" class="btn" style="background:#475569;">📄 Ver Edital</a>{% endif %}
+    {% if edital.link_inscricao %}<a href="{{ edital.link_inscricao }}" target="_blank" class="btn" style="background:#059669;">📝 Inscrever-se</a>{% endif %}
+  </div>
+</div>
+{% endblock %}

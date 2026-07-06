@@ -1,0 +1,42 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Editais — Radar Concursos{% endblock %}
+{% block content %}
+<form class="filters" method="get">
+  <div><label>Busca</label><input type="text" name="q" placeholder="título, organização..." value="{{ q or '' }}"></div>
+  <div><label>Fonte</label><select name="fonte"><option value="">Todas</option>{% for f in fontes %}<option value="{{ f }}" {% if fonte == f %}selected{% endif %}>{{ f }}</option>{% endfor %}</select></div>
+  <div><label>Estado</label><select name="estado"><option value="">Todos</option>{% for e in estados %}<option value="{{ e }}" {% if estado == e %}selected{% endif %}>{{ e or "Não informado" }}</option>{% endfor %}</select></div>
+  <button type="submit" class="btn">Filtrar</button>
+  <a href="/editais" class="btn" style="background:#475569;">Limpar</a>
+</form>
+
+{% if editais %}
+<table>
+  <thead><tr><th>Título</th><th>Fonte</th><th>Estado</th><th>Salário</th><th>Inscrições</th><th>Descoberto</th></tr></thead>
+  <tbody>
+  {% for e in editais %}
+  <tr>
+    <td><a href="/editais/{{ e.url | urlencode }}">{{ e.titulo[:90] }}{% if e.titulo|length > 90 %}...{% endif %}</a></td>
+    <td><span class="source-badge source-{{ e.fonte }}">{{ e.fonte }}</span></td>
+    <td>{{ e.estado or "—" }}</td>
+    <td>{% if e.salario %}{{ e.salario }}{% else %}—{% endif %}</td>
+    <td>{{ e.inscricoes or "—" }}</td>
+    <td>{{ e.created_at[:10] }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% if total_paginas > 1 %}
+<div class="pagination">
+  {% if pagina > 1 %}<a href="?pagina={{ pagina - 1 }}{% if q %}&q={{ q }}{% endif %}{% if fonte %}&fonte={{ fonte }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}">← Anterior</a>{% endif %}
+  {% for p in range(1, total_paginas + 1) %}
+    {% if p == pagina %}<span class="current">{{ p }}</span>{% elif p <= 3 or p > total_paginas - 2 or (p >= pagina - 1 and p <= pagina + 1) %}<a href="?pagina={{ p }}{% if q %}&q={{ q }}{% endif %}{% if fonte %}&fonte={{ fonte }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}">{{ p }}</a>{% endif %}
+  {% endfor %}
+  {% if pagina < total_paginas %}<a href="?pagina={{ pagina + 1 }}{% if q %}&q={{ q }}{% endif %}{% if fonte %}&fonte={{ fonte }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}">Próxima →</a>{% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty">Nenhum edital encontrado com esses filtros.</div>
+{% endif %}
+{% endblock %}

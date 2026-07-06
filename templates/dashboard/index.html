@@ -1,0 +1,55 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Visão Geral — Radar Concursos{% endblock %}
+{% block content %}
+<div class="stats">
+  <div class="stat-card"><div class="number">{{ stats.total }}</div><div class="label">Total de Editais</div></div>
+  <div class="stat-card"><div class="number">{{ stats.hoje }}</div><div class="label">Descobertos Hoje</div></div>
+  <div class="stat-card"><div class="number">{{ stats.fontes }}</div><div class="label">Fontes Ativas</div></div>
+  <div class="stat-card"><div class="number">{{ stats.estados }}</div><div class="label">Estados</div></div>
+  <div class="stat-card"><div class="number">{{ stats.esta_semana }}</div><div class="label">Esta Semana</div></div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+  <div class="detail-card">
+    <h2>📡 Por Fonte</h2>
+    <table>
+      {% for fonte, count in stats.por_fonte %}
+      <tr><td><span class="source-badge source-{{ fonte }}">{{ fonte }}</span></td><td style="text-align:right">{{ count }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  <div class="detail-card">
+    <h2>📍 Por Estado</h2>
+    <table>
+      {% for estado, count in stats.por_estado[:15] %}
+      <tr><td>{{ estado or "Não informado" }}</td><td style="text-align:right">{{ count }}</td></tr>
+      {% endfor %}
+      {% if stats.por_estado|length > 15 %}
+      <tr><td colspan="2" style="text-align:center;color:#64748b;">+{{ stats.por_estado|length - 15 }} estados</td></tr>
+      {% endif %}
+    </table>
+  </div>
+</div>
+
+<div class="detail-card" style="margin-top:2rem;">
+  <h2>🆕 Últimos Editais</h2>
+  {% if recentes %}
+  <table>
+    <thead><tr><th>Título</th><th>Fonte</th><th>Estado</th><th>Salário</th><th>Descoberto</th></tr></thead>
+    <tbody>
+    {% for e in recentes %}
+    <tr>
+      <td><a href="/editais/{{ e.url | urlencode }}">{{ e.titulo[:80] }}{% if e.titulo|length > 80 %}...{% endif %}</a></td>
+      <td><span class="source-badge source-{{ e.fonte }}">{{ e.fonte }}</span></td>
+      <td>{{ e.estado or "—" }}</td>
+      <td>{% if e.salario %}{{ e.salario }}{% else %}—{% endif %}</td>
+      <td>{{ e.created_at[:10] }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">Nenhum edital encontrado.</div>
+  {% endif %}
+</div>
+{% endblock %}
