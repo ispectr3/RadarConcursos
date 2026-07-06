@@ -1,20 +1,22 @@
 FROM python:3.11-slim
 
-# Configurar timezone para o agendador funcionar corretamente
+# Configurar timezone
 ENV TZ=America/Sao_Paulo
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 WORKDIR /app
 
-# Instalar dependências primeiro (aproveita o cache do Docker)
+# Instalar dependências
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar os arquivos do projeto
+# Copiar projeto
 COPY . .
 
-# Garantir que a pasta de dados exista
-RUN mkdir -p data
+# Garantir pasta de dados
+RUN mkdir -p data && chmod +x start.sh
 
-# Rodar o bot
-CMD ["python", "main.py"]
+# Fly.io health check na porta do dashboard
+EXPOSE 8765
+
+CMD ["./start.sh"]
