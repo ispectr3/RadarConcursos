@@ -81,7 +81,7 @@ def get_all_editais(cursor) -> list[dict]:
             "rowid": row[0],
             "url": row[1],
             "url_id": url_id(row[1]),
-            "detail_url": f"/edital/{url_id(row[1])}.html",
+            "detail_url": f"/RadarConcursos/edital/{url_id(row[1])}.html",
             "fonte": row[2],
             "titulo": row[3],
             "created_at": row[5],
@@ -111,6 +111,8 @@ def render() -> None:
         set(e.get("estado", "").strip().upper() for e in editais if e.get("estado"))
     )
 
+    SITE_BASE = "/RadarConcursos"
+
     # Index
     index_tpl = env.get_template("dashboard/index.html")
     index_html = index_tpl.render(
@@ -118,6 +120,7 @@ def render() -> None:
         recentes=editais[:10],
         request=None,
         current_path="/",
+        SITE_BASE=SITE_BASE,
     )
     (OUTPUT_DIR / "index.html").write_text(index_html)
     logger.info("Gerado index.html")
@@ -140,10 +143,11 @@ def render() -> None:
             fontes=fonts_disponiveis,
             estados=estados_disponiveis,
             static_mode=True,
-            pagina_url_prefix="/editais/page-",
+            pagina_url_prefix=f"{SITE_BASE}/editais/page-",
             pagina_url_suffix=".html",
             request=None,
             current_path="/editais",
+            SITE_BASE=SITE_BASE,
         )
         (OUTPUT_DIR / "editais" / f"page-{page}.html").write_text(list_html)
     logger.info("Geradas %d páginas de listagem", total_pages)
@@ -151,10 +155,12 @@ def render() -> None:
     # Detail
     detail_tpl = env.get_template("dashboard/detail.html")
     for edital in editais:
+        edital["SITE_BASE"] = SITE_BASE
         detail_html = detail_tpl.render(
             edital=edital,
             request=None,
             current_path="/edital",
+            SITE_BASE=SITE_BASE,
         )
         (OUTPUT_DIR / "edital" / f"{edital['url_id']}.html").write_text(detail_html)
     logger.info("Gerados %d detalhes", len(editais))

@@ -1,7 +1,7 @@
 {% extends "dashboard/base.html" %}
 {% block title %}{{ edital.titulo[:60] }} — Radar Concursos{% endblock %}
 {% block content %}
-<a href="/editais" style="font-size:0.875rem;margin-bottom:1rem;display:inline-block;">← Voltar para lista</a>
+<a href="{{ SITE_BASE or '' }}/editais" style="font-size:0.875rem;margin-bottom:1rem;display:inline-block;">← Voltar para lista</a>
 
 <div class="detail-card">
   <h2>{{ edital.titulo }}</h2>

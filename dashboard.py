@@ -46,7 +46,7 @@ def _parse_edital(row: sqlite3.Row) -> dict:
 
 def _render(request: Request, name: str, context: dict | None = None) -> HTMLResponse:
     tpl = _jinja_env.get_template(name)
-    ctx = {"request": request, "current_path": request.url.path, **(context or {})}
+    ctx = {"request": request, "current_path": request.url.path, "SITE_BASE": "", **(context or {})}
     html = tpl.render(ctx)
     return HTMLResponse(html)
 

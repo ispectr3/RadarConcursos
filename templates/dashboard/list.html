@@ -7,7 +7,7 @@
   <div><label>Fonte</label><select name="fonte"><option value="">Todas</option>{% for f in fontes %}<option value="{{ f }}" {% if fonte == f %}selected{% endif %}>{{ f }}</option>{% endfor %}</select></div>
   <div><label>Estado</label><select name="estado"><option value="">Todos</option>{% for e in estados %}<option value="{{ e }}" {% if estado == e %}selected{% endif %}>{{ e or "Não informado" }}</option>{% endfor %}</select></div>
   <button type="submit" class="btn">Filtrar</button>
-  <a href="/editais" class="btn" style="background:#475569;">Limpar</a>
+  <a href="{{ SITE_BASE or '' }}/editais" class="btn" style="background:#475569;">Limpar</a>
 </form>
 {% endif %}
 
