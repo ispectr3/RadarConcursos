@@ -1,0 +1,29 @@
+name: Key Watcher
+
+on:
+  schedule:
+    - cron: '0 */3 * * *'   # a cada 3 horas
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Cache DB
+        uses: actions/cache@v5
+        with:
+          path: data/
+          key: keywatch-db
+
+      - run: pip install requests
+
+      - name: Verificar chaves
+        run: python keywatch.py
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
