@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import logging
@@ -18,8 +19,13 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(mes
 
 README_URL = "https://raw.githubusercontent.com/alistaitsacle/free-llm-api-keys/main/README.md"
 DB_PATH = Path(__file__).resolve().parent / "data" / "keywatch.db"
+BASE_URL = "https://aiapiv2.pekpik.com/v1"
 
 _KEY_PATTERN = re.compile(r"`(sk-[a-zA-Z0-9]+)`")
+_TABLE_PATTERN = re.compile(
+    r"###\s+(.+?)\s+`[\d\-\s:]+`.*?\n(\|.+\|.+\|.+\|.+\|.+\|.+\|.+\|\n)+",
+    re.DOTALL,
+)
 
 
 def _init_db() -> None:
@@ -49,6 +55,25 @@ def _extract_keys(text: str) -> list[str]:
     return list(dict.fromkeys(_KEY_PATTERN.findall(text)))
 
 
+def _extract_smart_chat_keys(text: str) -> list[dict]:
+    entries = []
+    lines = text.split("\n")
+    current_section = ""
+    for line in lines:
+        m = re.match(r"^###\s+(.+)$", line)
+        if m:
+            current_section = m.group(1).strip().lower()
+        if "smart-chat" in current_section:
+            for match in _KEY_PATTERN.finditer(line):
+                key = match.group(1)
+                entries.append({
+                    "key": key,
+                    "base_url": BASE_URL,
+                    "model": "smart-chat",
+                })
+    return entries
+
+
 def _compute_hash(keys: list[str]) -> str:
     return hashlib.sha256("".join(sorted(keys)).encode()).hexdigest()
 
@@ -72,8 +97,52 @@ def _save_snapshot(keys: list[str], hash_val: str) -> None:
     conn.close()
 
 
-def check() -> None:
+def _update_github_secret(entries: list[dict]) -> None:
+    gh_token = os.getenv("GH_TOKEN")
+    repo = os.getenv("GITHUB_REPOSITORY")
+    if not gh_token or not repo:
+        logger.info("GH_TOKEN ou GITHUB_REPOSITORY não definidos; pulando auto-update.")
+        return
 
+    headers = {
+        "Authorization": f"Bearer {gh_token}",
+        "Accept": "application/vnd.github.v3+json",
+    }
+
+    try:
+        pubkey_resp = requests.get(
+            f"https://api.github.com/repos/{repo}/actions/secrets/public-key",
+            headers=headers,
+            timeout=15,
+        )
+        pubkey_resp.raise_for_status()
+        pubkey_data = pubkey_resp.json()
+        public_key = pubkey_data["key"]
+        key_id = pubkey_data["key_id"]
+
+        import nacl.bindings
+        public_key_bytes = base64.b64decode(public_key)
+        sealed = nacl.bindings.crypto_box_seal(
+            json.dumps(entries).encode(), public_key_bytes
+        )
+        encrypted_value = base64.b64encode(sealed).decode()
+
+        resp = requests.put(
+            f"https://api.github.com/repos/{repo}/actions/secrets/FREE_API_ENTRIES",
+            headers=headers,
+            json={
+                "encrypted_value": encrypted_value,
+                "key_id": key_id,
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        logger.info("FREE_API_ENTRIES atualizado automaticamente!")
+    except Exception as e:
+        logger.warning("Erro ao atualizar secret: %s", e)
+
+
+def check() -> None:
     _init_db()
 
     try:
@@ -97,15 +166,23 @@ def check() -> None:
     _save_snapshot(keys, current_hash)
     logger.info("Novas chaves detectadas! Hash: %s...", current_hash[:12])
 
+    smart_entries = _extract_smart_chat_keys(readme)
+    if smart_entries:
+        logger.info("Encontradas %d chaves smart-chat. Atualizando FREE_API_ENTRIES...", len(smart_entries))
+        _update_github_secret(smart_entries)
+
     target_chat = os.getenv("KEYWATCH_CHAT_ID") or config.settings.telegram_chat_id
     if config.settings.telegram_bot_token and target_chat:
         from telegram import Bot
         bot = Bot(token=config.settings.telegram_bot_token)
         msg = (
             f"🔄 <b>Free API Keys atualizadas!</b>\n"
-            f"📡 {len(keys)} chaves disponíveis\n\n"
-            f"💡 Copie as keys em:\n"
-            f"<a href='https://github.com/alistaitsacle/free-llm-api-keys'>github.com/alistaitsacle/free-llm-api-keys</a>"
+            f"📡 {len(keys)} chaves disponíveis"
+        )
+        if smart_entries:
+            msg += f"\n🤖 {len(smart_entries)} smart-chat keys → FREE_API_ENTRIES atualizado"
+        msg += (
+            f"\n\n<a href='https://github.com/alistaitsacle/free-llm-api-keys'>Ver todas</a>"
         )
         try:
             bot.send_message(chat_id=target_chat, text=msg, parse_mode="HTML")
