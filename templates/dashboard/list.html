@@ -1,6 +1,7 @@
 {% extends "dashboard/base.html" %}
 {% block title %}Editais — Radar Concursos{% endblock %}
 {% block content %}
+{% if not static_mode %}
 <form class="filters" method="get">
   <div><label>Busca</label><input type="text" name="q" placeholder="título, organização..." value="{{ q or '' }}"></div>
   <div><label>Fonte</label><select name="fonte"><option value="">Todas</option>{% for f in fontes %}<option value="{{ f }}" {% if fonte == f %}selected{% endif %}>{{ f }}</option>{% endfor %}</select></div>
@@ -8,6 +9,7 @@
   <button type="submit" class="btn">Filtrar</button>
   <a href="/editais" class="btn" style="background:#475569;">Limpar</a>
 </form>
+{% endif %}
 
 {% if editais %}
 <table>
@@ -15,7 +17,7 @@
   <tbody>
   {% for e in editais %}
   <tr>
-    <td><a href="/editais/{{ e.url | urlencode }}">{{ e.titulo[:90] }}{% if e.titulo|length > 90 %}...{% endif %}</a></td>
+    <td><a href="{{ e.detail_url or '/editais/' + (e.url | urlencode) }}">{{ e.titulo[:90] }}{% if e.titulo|length > 90 %}...{% endif %}</a></td>
     <td><span class="source-badge source-{{ e.fonte }}">{{ e.fonte }}</span></td>
     <td>{{ e.estado or "—" }}</td>
     <td>{% if e.salario %}{{ e.salario }}{% else %}—{% endif %}</td>
@@ -28,11 +30,11 @@
 
 {% if total_paginas > 1 %}
 <div class="pagination">
-  {% if pagina > 1 %}<a href="?pagina={{ pagina - 1 }}{% if q %}&q={{ q }}{% endif %}{% if fonte %}&fonte={{ fonte }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}">← Anterior</a>{% endif %}
+  {% if pagina > 1 %}<a href="{{ pagina_url_prefix }}{{ pagina - 1 }}{{ pagina_url_suffix }}">← Anterior</a>{% endif %}
   {% for p in range(1, total_paginas + 1) %}
-    {% if p == pagina %}<span class="current">{{ p }}</span>{% elif p <= 3 or p > total_paginas - 2 or (p >= pagina - 1 and p <= pagina + 1) %}<a href="?pagina={{ p }}{% if q %}&q={{ q }}{% endif %}{% if fonte %}&fonte={{ fonte }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}">{{ p }}</a>{% endif %}
+    {% if p == pagina %}<span class="current">{{ p }}</span>{% elif p <= 3 or p > total_paginas - 2 or (p >= pagina - 1 and p <= pagina + 1) %}<a href="{{ pagina_url_prefix }}{{ p }}{{ pagina_url_suffix }}">{{ p }}</a>{% endif %}
   {% endfor %}
-  {% if pagina < total_paginas %}<a href="?pagina={{ pagina + 1 }}{% if q %}&q={{ q }}{% endif %}{% if fonte %}&fonte={{ fonte }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}">Próxima →</a>{% endif %}
+  {% if pagina < total_paginas %}<a href="{{ pagina_url_prefix }}{{ pagina + 1 }}{{ pagina_url_suffix }}">Próxima →</a>{% endif %}
 </div>
 {% endif %}
 

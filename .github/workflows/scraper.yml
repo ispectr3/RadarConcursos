@@ -2,13 +2,21 @@ name: Radar Concursos
 
 on:
   schedule:
-    - cron: '0 */6 * * *'   # a cada 6 horas
-  workflow_dispatch:         # permite executar manualmente
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v5
 
@@ -38,3 +46,15 @@ jobs:
           FETCH_FULL_ARTICLE: 'True'
           ONLY_DISCOVERED_TODAY: 'False'
           SCHEDULER_TIMEZONE: 'America/Sao_Paulo'
+
+      - name: Gerar site estático
+        run: python generate_static_site.py
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
