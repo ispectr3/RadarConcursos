@@ -34,6 +34,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           FREE_API_KEY: ${{ secrets.FREE_API_KEY }}
+          FREE_API_ENTRIES: ${{ secrets.FREE_API_ENTRIES }}
           FETCH_FULL_ARTICLE: 'True'
           ONLY_DISCOVERED_TODAY: 'False'
           SCHEDULER_TIMEZONE: 'America/Sao_Paulo'

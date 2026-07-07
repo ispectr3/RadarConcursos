@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -111,6 +112,7 @@ class Settings:
     free_api_key: str | None
     free_api_base_url: str
     free_api_model: str
+    free_api_entries: list[dict] | None
 
     telegram_delay_seconds: int
 
@@ -254,6 +256,7 @@ def load_settings() -> Settings:
             "FREE_API_MODEL",
             "gemini-2.5-flash"
         ),
+        free_api_entries=_parse_free_entries(),
 
         telegram_delay_seconds=max(
             1,
@@ -290,6 +293,22 @@ def _parse_sources(raw: str | None) -> list[str] | None:
     if not raw or not raw.strip():
         return None
     return [s.strip().lower() for s in raw.split(",") if s.strip()]
+
+
+def _parse_free_entries() -> list[dict] | None:
+    raw = os.getenv("FREE_API_ENTRIES")
+    if not raw or not raw.strip():
+        return None
+    try:
+        entries = json.loads(raw)
+        if not isinstance(entries, list):
+            return None
+        return [
+            e for e in entries
+            if isinstance(e, dict) and e.get("key") and e.get("model")
+        ]
+    except (json.JSONDecodeError, TypeError):
+        return None
 
 
 settings = load_settings()

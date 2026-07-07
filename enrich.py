@@ -32,18 +32,25 @@ except Exception:
     groq_client = None
 
 # Free API Key Pool (fallback final — https://github.com/alistaitsacle/free-llm-api-keys)
-_free_api_keys: list[str] = []
-if settings.free_api_key:
-    _free_api_keys = [k.strip() for k in settings.free_api_key.split(",") if k.strip()]
-_free_key_index = 0
+_free_entries: list[dict] = []
 
-def _next_free_client() -> OpenAI | None:
-    global _free_key_index
-    if not _free_api_keys:
+if settings.free_api_entries:
+    _free_entries = list(settings.free_api_entries)
+elif settings.free_api_key:
+    _free_entries = [
+        {"key": k.strip(), "base_url": settings.free_api_base_url, "model": settings.free_api_model}
+        for k in settings.free_api_key.split(",")
+        if k.strip()
+    ]
+_free_entry_index = 0
+
+def _next_free_entry() -> dict | None:
+    global _free_entry_index
+    if not _free_entries:
         return None
-    key = _free_api_keys[_free_key_index % len(_free_api_keys)]
-    _free_key_index = (_free_key_index + 1) % len(_free_api_keys)
-    return OpenAI(api_key=key, base_url=settings.free_api_base_url)
+    entry = _free_entries[_free_entry_index % len(_free_entries)]
+    _free_entry_index = (_free_entry_index + 1) % len(_free_entries)
+    return entry
 
 # Free tier: 5 req/min → 1 req a cada 12.5s
 _MIN_INTERVAL = 12.5
@@ -127,8 +134,8 @@ def resumo_ia_groq(texto: str) -> dict:
 def resumo_ia_free(texto: str) -> dict:
     global _free_blocked_until
 
-    if not _free_api_keys:
-        logger.debug("Nenhuma FREE_API_KEY configurada; pulando fallback free.")
+    if not _free_entries:
+        logger.debug("Nenhuma FREE_API_KEY / FREE_API_ENTRIES configurada; pulando fallback free.")
         return {}
 
     if time.time() < _free_blocked_until:
@@ -161,14 +168,15 @@ def resumo_ia_free(texto: str) -> dict:
     {texto[:15000]}
     """
 
-    tentativas = len(_free_api_keys)
+    tentativas = len(_free_entries)
     for attempt in range(tentativas):
-        client = _next_free_client()
-        if not client:
+        entry = _next_free_entry()
+        if not entry:
             continue
         try:
+            client = OpenAI(api_key=entry["key"], base_url=entry.get("base_url", settings.free_api_base_url))
             response = client.chat.completions.create(
-                model=settings.free_api_model,
+                model=entry["model"],
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.0,
                 response_format={"type": "json_object"},
@@ -178,13 +186,13 @@ def resumo_ia_free(texto: str) -> dict:
             return json.loads(content)
         except Exception as e:
             logger.warning(
-                "Free API key %d/%d falhou: %s",
-                attempt + 1, tentativas, e,
+                "Free entry %d/%d (model=%s) falhou: %s",
+                attempt + 1, tentativas, entry["model"], e,
             )
             continue
 
     _free_blocked_until = time.time() + 600
-    logger.warning("Todas as %d chaves da Free API falharam. Cooldown de 10 min.", tentativas)
+    logger.warning("Todas as %d entries da Free API falharam. Cooldown de 10 min.", tentativas)
     return {}
 
 
