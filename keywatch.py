@@ -131,7 +131,10 @@ def check() -> None:
     _save_snapshot(keys, current_hash)
     logger.info("Novas chaves detectadas! Hash: %s...", current_hash[:12])
 
-    if settings.telegram_bot_token and settings.telegram_chat_id:
+    target_chat = os.getenv("KEYWATCH_CHAT_ID") or settings.telegram_chat_id
+    if settings.telegram_bot_token and target_chat:
+        from telegram import Bot
+        bot = Bot(token=settings.telegram_bot_token)
         msg = (
             f"🔄 <b>Free API Keys atualizadas!</b>\n"
             f"📡 {len(keys)} chaves disponíveis\n\n"
@@ -139,7 +142,7 @@ def check() -> None:
             f"<a href='https://github.com/alistaitsacle/free-llm-api-keys'>github.com/alistaitsacle/free-llm-api-keys</a>"
         )
         try:
-            send_telegram_html(msg)
+            bot.send_message(chat_id=target_chat, text=msg, parse_mode="HTML")
         except Exception as e:
             logger.warning("Erro ao enviar notificação: %s", e)
 
