@@ -5,7 +5,7 @@ import re
 import time
 import logging
 
-import google.generativeai as genai
+from google import genai
 import google.api_core.exceptions
 import groq
 from openai import OpenAI
@@ -21,9 +21,7 @@ logger = logging.getLogger(__name__)
 class AIRateLimitError(Exception):
     pass
 
-genai.configure(api_key=settings.gemini_api_key)
-
-model = genai.GenerativeModel("gemini-2.5-flash")
+_gemini_client = genai.Client(api_key=settings.gemini_api_key) if settings.gemini_api_key else None
 
 # Groq Client (Fallback)
 try:
@@ -229,6 +227,15 @@ def resumo_ia(texto: str) -> dict:
         gemini_cooldown = time.time() < _gemini_blocked_until
         groq_cooldown = time.time() < _groq_blocked_until
 
+        if not _gemini_client:
+            res = resumo_ia_groq(texto)
+            if res:
+                return res
+            res = resumo_ia_free(texto)
+            if res:
+                return res
+            raise AIRateLimitError("Gemini não configurado, Groq e Free API falharam.")
+
         if gemini_cooldown:
             if not groq_cooldown:
                 logger.info("Gemini em cooldown. Tentando Groq...")
@@ -244,7 +251,10 @@ def resumo_ia(texto: str) -> dict:
 
         _throttle()
         try:
-            response = model.generate_content(prompt)
+            response = _gemini_client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+            )
             content = response.text.strip()
             content = re.sub(r"```json|```", "", content)
             return json.loads(content)
