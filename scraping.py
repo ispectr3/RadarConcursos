@@ -20,7 +20,36 @@ ACHE_ATUALIZADOS = "https://www.acheconcursos.com.br/concursos-atualizados-recen
 PCI_BASE = "https://www.pciconcursos.com.br"
 PCI_SKIP = ("/apostilas/", "/pedido/", "compra?", "/login", "google", "facebook")
 
-FOLHA_BASE = "https://www.folhadirigida.com.br"
+F5_BASE = "https://www.f5cariri.com.br"
+F5_URLS = (
+    "https://www.f5cariri.com.br/search/label/CONCURSO?&max-results=8",
+    "https://www.f5cariri.com.br/search/label/CURSOS?&max-results=8",
+)
+
+
+def fetch_f5cariri() -> list[Edital]:
+    editais: list[Edital] = []
+    seen: set[str] = set()
+
+    for url in F5_URLS:
+        soup = get_soup(url)
+        for h3 in soup.find_all("h3", class_="post-title"):
+            a = h3.find("a", href=True)
+            if not a:
+                continue
+            href = a.get("href", "").strip()
+            titulo = a.get_text(strip=True)
+            if not href or not titulo:
+                continue
+            if len(titulo) < 12:
+                continue
+            key = normalize_url(href)
+            if key in seen:
+                continue
+            seen.add(key)
+            editais.append(Edital(titulo=titulo, url=key, fonte="f5cariri"))
+    return editais
+
 FOLHA_PALAVRAS = (
     "concurso",
     "edital",
@@ -326,7 +355,7 @@ def fetch_estrategia() -> list[Edital]:
 
 def collect_all() -> list[Edital]:
     merged: dict[str, Edital] = {}
-    for fetch in (fetch_ache, fetch_pci, fetch_folha, fetch_gran, fetch_estrategia):
+    for fetch in (fetch_ache, fetch_pci, fetch_folha, fetch_gran, fetch_estrategia, fetch_f5cariri):
         try:
             items = fetch()
         except Exception:
