@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("static_site")
 
 DB_PATH = Path(__file__).resolve().parent / "data" / "monitor.db"
-TEMPLATES_DIR = Path(__file__).resolve().parent / "templates" / "dashboard"
+TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 OUTPUT_DIR = Path(__file__).resolve().parent / "_site"
 
 
@@ -112,7 +112,7 @@ def render() -> None:
     )
 
     # Index
-    index_tpl = env.get_template("index.html")
+    index_tpl = env.get_template("dashboard/index.html")
     index_html = index_tpl.render(
         stats=stats,
         recentes=editais[:10],
@@ -123,7 +123,7 @@ def render() -> None:
     logger.info("Gerado index.html")
 
     # List (paginated)
-    list_tpl = env.get_template("list.html")
+    list_tpl = env.get_template("dashboard/list.html")
     page_size = 25
     total_pages = max(1, (len(editais) + page_size - 1) // page_size)
     for page in range(1, total_pages + 1):
@@ -149,7 +149,7 @@ def render() -> None:
     logger.info("Geradas %d páginas de listagem", total_pages)
 
     # Detail
-    detail_tpl = env.get_template("detail.html")
+    detail_tpl = env.get_template("dashboard/detail.html")
     for edital in editais:
         detail_html = detail_tpl.render(
             edital=edital,
