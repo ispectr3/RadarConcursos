@@ -353,9 +353,83 @@ def fetch_estrategia() -> list[Edital]:
     return editais
 
 
+def _scrape_blog(
+    base_url: str,
+    domain_fragment: str,
+    path_segments: int,
+    segment_index: int | None,
+    keywords: tuple[str, ...],
+    skip_terms: tuple[str, ...],
+    fonte: str,
+) -> list[Edital]:
+    soup = get_soup(base_url)
+    editais: list[Edital] = []
+    seen: set[str] = set()
+
+    for a in soup.find_all("a", href=True):
+        href = a.get("href", "").strip()
+        titulo = a.get_text(" ", strip=True)
+        if not href or not titulo:
+            continue
+        if not href.startswith("http"):
+            href = urljoin(base_url, href)
+        if domain_fragment not in normalize_url(href):
+            continue
+        p = urlparse(href)
+        segments = [s for s in p.path.split("/") if s]
+        if len(segments) != path_segments:
+            continue
+        if segment_index is not None:
+            slug = segments[segment_index].lower()
+        else:
+            slug = segments[-1].lower()
+        if not any(kw in slug or kw in titulo.lower() for kw in keywords):
+            continue
+        if any(skip in slug for skip in skip_terms) or is_generic_page(slug):
+            continue
+        if is_study_or_article(titulo, slug):
+            continue
+        if len(titulo) < 12:
+            continue
+        key = normalize_url(href)
+        if key in seen:
+            continue
+        seen.add(key)
+        editais.append(Edital(titulo=titulo, url=key, fonte=fonte))
+    return editais
+
+
+BLOG_KEYWORDS = ("concurso", "edital", "vagas", "inscricoes", "inscricao", "retificacao", "aberto")
+BLOG_SKIP = ("depoimentos", "professores", "artigos", "como-estudar", "category", "tag", "page", "contato")
+
+
+def fetch_direcao() -> list[Edital]:
+    return _scrape_blog(
+        base_url="https://blog.direcaoconcursos.com.br",
+        domain_fragment="blog.direcaoconcursos.com.br",
+        path_segments=1,
+        segment_index=0,
+        keywords=BLOG_KEYWORDS,
+        skip_terms=BLOG_SKIP,
+        fonte="direcaoconcursos",
+    )
+
+
+def fetch_qconcursos() -> list[Edital]:
+    return _scrape_blog(
+        base_url="https://blog.qconcursos.com",
+        domain_fragment="blog.qconcursos.com",
+        path_segments=1,
+        segment_index=0,
+        keywords=BLOG_KEYWORDS,
+        skip_terms=BLOG_SKIP,
+        fonte="qconcursos",
+    )
+
+
 def collect_all() -> list[Edital]:
     merged: dict[str, Edital] = {}
-    for fetch in (fetch_ache, fetch_pci, fetch_folha, fetch_gran, fetch_estrategia, fetch_f5cariri):
+    for fetch in (fetch_ache, fetch_pci, fetch_folha, fetch_gran, fetch_estrategia, fetch_f5cariri, fetch_direcao, fetch_qconcursos):
         try:
             items = fetch()
         except Exception:
