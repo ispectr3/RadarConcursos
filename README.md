@@ -131,7 +131,7 @@ RadarConcursos/
 - [ ] **Auto-update FREE_API_ENTRIES** ✅ via Key Watcher
 - [ ] **Dependabot** ✅ pip + actions
 - [ ] **Google Calendar** — ver [guia](#-google-calendar)
-- [ ] **Mais fontes** — PRs bem-vindos
+- [ ] **Mais fontes**
 
 ---
 
@@ -175,4 +175,4 @@ MIT — veja [LICENSE](LICENSE).
 
 ## 📬 Contato
 
-[@ispectr3](https://github.com/ispectr3) — issues e PRs são bem-vindos!
+[@ispectr3](https://github.com/ispectr3)
