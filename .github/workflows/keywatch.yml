@@ -20,7 +20,7 @@ jobs:
           path: data/
           key: keywatch-db
 
-      - run: pip install requests
+      - run: pip install -r requirements.txt
 
       - name: Verificar chaves
         run: python keywatch.py
