@@ -12,7 +12,6 @@ from pathlib import Path
 import requests
 
 import config
-from notifications import send_telegram_html
 
 logger = logging.getLogger("keywatch")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
@@ -73,38 +72,7 @@ def _save_snapshot(keys: list[str], hash_val: str) -> None:
     conn.close()
 
 
-def _format_telegram_alert(keys: list[str]) -> str:
-    gemini = [k for k in keys if k in _last_keys]
-    smart = [k for k in keys if k in _last_keys]
-
-    msg = (
-        "🔄 <b>Chaves Free API Atualizadas!</b>\n\n"
-        f"Total: {len(keys)} chaves disponíveis\n\n"
-    )
-
-    gemini_keys = [k for k in keys if "gemini" in _last_keys_raw.get(k, "").lower()]
-    smart_keys = [k for k in keys if "smart-chat" in _last_keys_raw.get(k, "").lower()]
-
-    if gemini_keys:
-        msg += f"🧠 <b>Gemini 2.5 Flash</b> ({len(gemini_keys)}):\n"
-        msg += "\n".join(f"  <code>{k}</code>" for k in gemini_keys[:3])
-        msg += "\n\n"
-
-    if smart_keys:
-        msg += f"🤖 <b>Smart-Chat</b> ({len(smart_keys)}):\n"
-        msg += "\n".join(f"  <code>{k}</code>" for k in smart_keys[:3])
-        msg += "\n\n"
-
-    msg += "<a href='https://github.com/alistaitsacle/free-llm-api-keys'>Ver todas</a>"
-    return msg
-
-
-_last_keys: list[str] = []
-_last_keys_raw: dict[str, str] = {}
-
-
 def check() -> None:
-    global _last_keys, _last_keys_raw
 
     _init_db()
 
@@ -119,8 +87,6 @@ def check() -> None:
         logger.info("Nenhuma chave encontrada no README.")
         return
 
-    _last_keys = keys
-
     current_hash = _compute_hash(keys)
     last_hash = _get_last_hash()
 
@@ -131,10 +97,10 @@ def check() -> None:
     _save_snapshot(keys, current_hash)
     logger.info("Novas chaves detectadas! Hash: %s...", current_hash[:12])
 
-    target_chat = os.getenv("KEYWATCH_CHAT_ID") or settings.telegram_chat_id
-    if settings.telegram_bot_token and target_chat:
+    target_chat = os.getenv("KEYWATCH_CHAT_ID") or config.settings.telegram_chat_id
+    if config.settings.telegram_bot_token and target_chat:
         from telegram import Bot
-        bot = Bot(token=settings.telegram_bot_token)
+        bot = Bot(token=config.settings.telegram_bot_token)
         msg = (
             f"🔄 <b>Free API Keys atualizadas!</b>\n"
             f"📡 {len(keys)} chaves disponíveis\n\n"
